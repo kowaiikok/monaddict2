@@ -1,30 +1,27 @@
 // ─── FriendsPage.jsx ──────────────────────────────────────────────────────────
-// Displays friends list, pending friend requests, and the Add Friend modal.
-// Wire addFriend / declineRequest to contract calls when ready.
-
 import { useState } from "react";
 import { short, initial, Modal } from "../contract/Constants.jsx";
 
 const isAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(value || "");
 
-// ─── Add Friend Modal ─────────────────────────────────────────────────────────
-function AddFriendModal({ onClose, onAdd }) {
+// ─── Send Request Modal ───────────────────────────────────────────────────────
+function SendRequestModal({ onClose, onSend }) {
   const [addr, setAddr] = useState("");
   const [name, setName] = useState("");
-  const canAdd = isAddress(addr);
+  const canSend = isAddress(addr);
 
   return (
     <Modal
-      title="Add Friend"
+      title="Send Friend Request"
       onClose={onClose}
       footer={
         <>
           <button
             className="btn btn-ink"
-            disabled={!canAdd}
-            onClick={() => canAdd && onAdd(addr, name)}
+            disabled={!canSend}
+            onClick={() => canSend && onSend(addr, name)}
           >
-            Add Friend
+            Send Request
           </button>
           <button className="btn btn-ghost" onClick={onClose}>
             Cancel
@@ -40,7 +37,7 @@ function AddFriendModal({ onClose, onAdd }) {
           value={addr}
           onChange={(e) => setAddr(e.target.value)}
         />
-        {addr && !canAdd && (
+        {addr && !canSend && (
           <div className="field-hint error">
             Use a full 0x wallet address so bet transactions can go to this person.
           </div>
@@ -64,9 +61,11 @@ export default function FriendsPage({
   state,
   acceptFriendRequest,
   declineRequest,
-  addFriend,
+  sendFriendRequest,
+  outgoingRequests,
 }) {
   const [showModal, setShowModal] = useState(false);
+  const sent = outgoingRequests || [];
 
   return (
     <div className="page">
@@ -82,16 +81,20 @@ export default function FriendsPage({
         </div>
         <div className="stat-box">
           <div className="stat-num rose">{state.pendingRequests.length}</div>
-          <div className="stat-lbl">Pending</div>
+          <div className="stat-lbl">Incoming</div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-num">{sent.length}</div>
+          <div className="stat-lbl">Sent</div>
         </div>
       </div>
 
-      {/* ── Pending requests ── */}
+      {/* ── Incoming requests ── */}
       {state.pendingRequests.length > 0 && (
         <>
           <div className="section-head">
             <div className="section-label" style={{ color: "var(--rose)" }}>
-              Requests
+              Friend Requests
             </div>
             <span className="tag tag-rose">
               {state.pendingRequests.length} pending
@@ -133,6 +136,38 @@ export default function FriendsPage({
         </>
       )}
 
+      {/* ── Sent requests ── */}
+      {sent.length > 0 && (
+        <>
+          <div className="section-head">
+            <div className="section-label" style={{ color: "var(--amber)" }}>
+              Sent Requests
+            </div>
+            <span className="tag tag-amber">{sent.length} waiting</span>
+          </div>
+
+          <div className="card-list" style={{ marginBottom: 32 }}>
+            {sent.map((r) => (
+              <div className="card" key={r.address}>
+                <div className="card-accent amber" />
+                <div className="card-row" style={{ paddingLeft: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="avatar">{initial(r.address)}</div>
+                    <div>
+                      <div className="card-title">{r.ens}</div>
+                      <div className="card-meta">{r.address}</div>
+                    </div>
+                  </div>
+                  <div className="card-actions">
+                    <span className="tag tag-muted">Pending</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* ── Friends list ── */}
       <div className="section-head">
         <div className="section-label">My Friends</div>
@@ -147,7 +182,7 @@ export default function FriendsPage({
       {state.friends.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">◈</div>
-          <div className="empty-text">No friends added yet</div>
+          <div className="empty-text">No friends yet — send a request</div>
         </div>
       ) : (
         <div className="card-list">
@@ -175,10 +210,10 @@ export default function FriendsPage({
 
       {/* ── Modal ── */}
       {showModal && (
-        <AddFriendModal
+        <SendRequestModal
           onClose={() => setShowModal(false)}
-          onAdd={(addr, name) => {
-            addFriend(addr, name);
+          onSend={(addr, name) => {
+            sendFriendRequest(addr, name);
             setShowModal(false);
           }}
         />

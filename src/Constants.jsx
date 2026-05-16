@@ -13,6 +13,7 @@ export const INITIAL_STATE = {
   pendingRequests: [
     { address: "0xCarol333", ens: "carol.eth" },
   ],
+  outgoingRequests: [],
   groups: [
     {
       id: "g1",
@@ -35,6 +36,7 @@ export const INITIAL_STATE = {
       completedAt: null,
       verified: false,
       verifiedBy: [],
+      openForBets: true,
     },
     {
       id: "goal2",
@@ -46,6 +48,7 @@ export const INITIAL_STATE = {
       completedAt: null,
       verified: false,
       verifiedBy: [],
+      openForBets: true,
     },
   ],
   bets: [

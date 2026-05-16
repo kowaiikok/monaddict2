@@ -191,6 +191,7 @@ function persistAccount(address, fields) {
 const ACCOUNT_DEFAULTS = {
   friends: [],
   pendingRequests: [],
+  outgoingRequests: [],
   groups: [],
   goals: [],
   bets: [],
@@ -201,11 +202,37 @@ function accountFields(s) {
   return {
     friends: s.friends,
     pendingRequests: s.pendingRequests,
+    outgoingRequests: s.outgoingRequests || [],
     groups: s.groups,
     goals: s.goals,
     bets: s.bets,
     transactions: s.transactions,
   };
+}
+
+// Inject a friend request into another account's stored data
+function injectFriendRequestToAccount(targetAddress, request) {
+  if (!targetAddress || !isAddress(targetAddress)) return;
+  const all = loadAllAccounts();
+  const data = all[targetAddress] || { ...ACCOUNT_DEFAULTS };
+  if ((data.pendingRequests || []).some((r) => r.address === request.address)) return;
+  data.pendingRequests = [...(data.pendingRequests || []), request];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...all, [targetAddress]: data }));
+}
+
+// When B accepts A's request, add B to A's friends in their stored data
+function syncFriendAcceptedToAccount(requesterAddress, newFriend) {
+  if (!requesterAddress || !isAddress(requesterAddress)) return;
+  const all = loadAllAccounts();
+  const data = all[requesterAddress];
+  if (!data) return;
+  if (!(data.friends || []).some((f) => f.address === newFriend.address)) {
+    data.friends = [...(data.friends || []), newFriend];
+  }
+  data.outgoingRequests = (data.outgoingRequests || []).filter(
+    (r) => r.address !== newFriend.address
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...all, [requesterAddress]: data }));
 }
 
 // Write a bet into another account's stored data without touching current state
@@ -472,18 +499,25 @@ export default function App() {
   }, []);
 
   // ── Actions (wire to contract here) ────────────────────────────────────────
-  function addFriend(address, name) {
+  function sendFriendRequest(address, name) {
+    injectFriendRequestToAccount(address, {
+      address: state.account,
+      ens: short(state.account),
+      sentAt: Date.now(),
+    });
     update((s) => {
-      s.friends = [
-        ...s.friends,
-        { address, ens: name || address, since: Date.now() },
+      if ((s.outgoingRequests || []).some((r) => r.address === address)) return s;
+      s.outgoingRequests = [
+        ...(s.outgoingRequests || []),
+        { address, ens: name || address, sentAt: Date.now() },
       ];
       return s;
     });
-    push(`${name || short(address)} added`, "success");
+    push(`Friend request sent to ${name || short(address)}`, "success");
   }
 
   function acceptFriendRequest(addr, name) {
+    const me = state.account;
     update((s) => {
       s.friends = [
         ...s.friends,
@@ -492,6 +526,7 @@ export default function App() {
       s.pendingRequests = s.pendingRequests.filter((r) => r.address !== addr);
       return s;
     });
+    syncFriendAcceptedToAccount(addr, { address: me, ens: short(me), since: Date.now() });
     push(`${name || short(addr)} added as friend`, "success");
   }
 
@@ -501,6 +536,17 @@ export default function App() {
       return s;
     });
     push("Request declined");
+  }
+
+  function inviteToGroup(groupId, friendAddress) {
+    update((s) => {
+      s.groups = s.groups.map((g) => {
+        if (g.id !== groupId || g.members.includes(friendAddress)) return g;
+        return { ...g, members: [...g.members, friendAddress] };
+      });
+      return s;
+    });
+    push("Member invited!", "success");
   }
 
   function createGroup(name, description, isPrivate) {
@@ -521,7 +567,7 @@ export default function App() {
     push("Group created!", "success");
   }
 
-  function addGoal(title, description, deadline, groupId) {
+  function addGoal(title, description, deadline, groupId, openForBets = true) {
     const id = "goal" + Date.now();
     update((s) => {
       s.goals = [
@@ -532,11 +578,21 @@ export default function App() {
           completedAt: null,
           verified: false,
           verifiedBy: [],
+          openForBets,
         },
       ];
       return s;
     });
     push("Goal set!", "success");
+  }
+
+  function toggleGoalBetting(goalId) {
+    update((s) => {
+      s.goals = s.goals.map((g) =>
+        g.id === goalId ? { ...g, openForBets: !(g.openForBets ?? true) } : g
+      );
+      return s;
+    });
   }
 
   function markComplete(goalId) {
@@ -848,15 +904,17 @@ export default function App() {
           {page === "friends" && (
             <FriendsPage
               state={state}
-              addFriend={addFriend}
+              sendFriendRequest={sendFriendRequest}
               acceptFriendRequest={acceptFriendRequest}
               declineRequest={declineRequest}
+              outgoingRequests={state.outgoingRequests || []}
             />
           )}
           {page === "groups" && (
             <GroupsPage
               state={state}
               createGroup={createGroup}
+              inviteToGroup={inviteToGroup}
             />
           )}
           {page === "goals" && (
@@ -866,6 +924,7 @@ export default function App() {
               markComplete={markComplete}
               verifyGoal={verifyGoal}
               onBet={openBetForGoal}
+              toggleGoalBetting={toggleGoalBetting}
             />
           )}
           {page === "bets" && (

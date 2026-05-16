@@ -550,8 +550,10 @@ export default function BetsPage({
       {incomingPending.length > 0 && (
         <>
           <div className="section-head">
-            <div className="section-label">Pending for you</div>
-            <span className="section-count">{incomingPending.length} waiting</span>
+            <div className="section-label" style={{ color: "var(--rose)" }}>
+              Bets Waiting for You
+            </div>
+            <span className="tag tag-rose">{incomingPending.length} need response</span>
           </div>
           <div className="card-list" style={{ marginBottom: 24 }}>
             {incomingPending.map((b) => (

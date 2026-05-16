@@ -1,9 +1,6 @@
 // ─── GroupsPage.jsx ───────────────────────────────────────────────────────────
-// Displays private groups with member avatars and per-group goal progress.
-// Wire createGroup to contract.createGroup(...) when ready.
-
 import { useState } from "react";
-import { initial, Modal } from "../Constants.jsx";
+import { initial, short, ensName, Modal } from "../Constants.jsx";
 
 // ─── Create Group Modal ───────────────────────────────────────────────────────
 function CreateGroupModal({ onClose, onCreate }) {
@@ -64,9 +61,71 @@ function CreateGroupModal({ onClose, onCreate }) {
   );
 }
 
+// ─── Invite Member Modal ──────────────────────────────────────────────────────
+function InviteMemberModal({ onClose, onInvite, friends, existingMembers }) {
+  const available = friends.filter((f) => !existingMembers.includes(f.address));
+  const [selected, setSelected] = useState(available[0]?.address || "");
+
+  if (available.length === 0) {
+    return (
+      <Modal
+        title="Invite Member"
+        onClose={onClose}
+        footer={
+          <button className="btn btn-ghost" onClick={onClose}>
+            Close
+          </button>
+        }
+      >
+        <div className="empty">
+          <div className="empty-icon">◈</div>
+          <div className="empty-text">All your friends are already in this group</div>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal
+      title="Invite Member"
+      onClose={onClose}
+      footer={
+        <>
+          <button
+            className="btn btn-ink"
+            disabled={!selected}
+            onClick={() => selected && onInvite(selected)}
+          >
+            Invite
+          </button>
+          <button className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+        </>
+      }
+    >
+      <div className="field">
+        <label className="label">Select Friend</label>
+        <select
+          className="select"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+        >
+          {available.map((f) => (
+            <option key={f.address} value={f.address}>
+              {f.ens}
+            </option>
+          ))}
+        </select>
+      </div>
+    </Modal>
+  );
+}
+
 // ─── Groups Page ──────────────────────────────────────────────────────────────
-export default function GroupsPage({ state, createGroup }) {
-  const [showModal, setShowModal] = useState(false);
+export default function GroupsPage({ state, createGroup, inviteToGroup }) {
+  const [showModal, setShowModal]   = useState(false);
+  const [inviteGroup, setInviteGroup] = useState(null); // group id being invited to
 
   return (
     <div className="page">
@@ -118,6 +177,7 @@ export default function GroupsPage({ state, createGroup }) {
             const pct = groupGoals.length
               ? Math.round((done / groupGoals.length) * 100)
               : 0;
+            const isCreator = g.creator === state.account;
 
             return (
               <div className="card" key={g.id}>
@@ -144,28 +204,68 @@ export default function GroupsPage({ state, createGroup }) {
                       )}
                     </div>
 
-                    {/* Member avatars */}
-                    <div className="card-actions" style={{ flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      <div className="avatar-group">
-                        {g.members.slice(0, 4).map((m) => (
-                          <div key={m} className="avatar avatar-sm">
-                            {initial(m)}
-                          </div>
-                        ))}
-                        {g.members.length > 4 && (
-                          <div className="avatar avatar-sm" style={{ background: "var(--muted)" }}>
-                            +{g.members.length - 4}
-                          </div>
-                        )}
-                      </div>
-                      <span className="section-count">
-                        {g.members.length} member{g.members.length !== 1 ? "s" : ""}
-                      </span>
+                    {/* Actions */}
+                    <div className="card-actions">
+                      {isCreator && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setInviteGroup(g.id)}
+                        >
+                          + Invite
+                        </button>
+                      )}
                     </div>
                   </div>
 
+                  {/* Members list */}
+                  <div
+                    style={{
+                      margin: "12px 0",
+                      borderTop: "1px solid var(--border)",
+                      paddingTop: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 11,
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Members ({g.members.length})
+                    </div>
+                    {g.members.map((m) => {
+                      const isMe = m === state.account;
+                      const name = isMe
+                        ? "You"
+                        : ensName(m, state.friends);
+                      return (
+                        <div
+                          key={m}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            marginBottom: 6,
+                          }}
+                        >
+                          <div className="avatar avatar-sm">{initial(m)}</div>
+                          <span style={{ fontSize: 13, flex: 1 }}>{name}</span>
+                          {m === g.creator && (
+                            <span className="tag tag-muted" style={{ fontSize: 10 }}>
+                              creator
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
                   {/* Progress bar */}
-                  <div style={{ marginTop: 14 }}>
+                  <div style={{ marginTop: 4 }}>
                     <div
                       style={{
                         display: "flex",
@@ -222,13 +322,26 @@ export default function GroupsPage({ state, createGroup }) {
         </div>
       )}
 
-      {/* ── Modal ── */}
+      {/* ── Modals ── */}
       {showModal && (
         <CreateGroupModal
           onClose={() => setShowModal(false)}
           onCreate={(name, desc, priv) => {
             createGroup(name, desc, priv);
             setShowModal(false);
+          }}
+        />
+      )}
+      {inviteGroup && (
+        <InviteMemberModal
+          friends={state.friends}
+          existingMembers={
+            state.groups.find((g) => g.id === inviteGroup)?.members || []
+          }
+          onClose={() => setInviteGroup(null)}
+          onInvite={(friendAddress) => {
+            inviteToGroup(inviteGroup, friendAddress);
+            setInviteGroup(null);
           }}
         />
       )}

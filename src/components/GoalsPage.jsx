@@ -1,16 +1,14 @@
 // ─── GoalsPage.jsx ────────────────────────────────────────────────────────────
-// Personal goals with filter tabs, mark-complete, and peer verification.
-// Wire addGoal / markComplete / verifyGoal to contract calls when ready.
-
 import { useState } from "react";
 import { ensName, DeadlineChip, Modal } from "../Constants.jsx";
 
 // ─── Add Goal Modal ───────────────────────────────────────────────────────────
 function AddGoalModal({ onClose, onAdd, groups }) {
-  const [title, setTitle] = useState("");
-  const [desc,  setDesc]  = useState("");
-  const [dl,    setDl]    = useState("");
-  const [gid,   setGid]   = useState(groups[0]?.id || "");
+  const [title, setTitle]           = useState("");
+  const [desc,  setDesc]            = useState("");
+  const [dl,    setDl]              = useState("");
+  const [gid,   setGid]             = useState(groups[0]?.id || "");
+  const [openForBets, setOpenForBets] = useState(true);
 
   const canSubmit = title.trim() && dl;
 
@@ -24,7 +22,7 @@ function AddGoalModal({ onClose, onAdd, groups }) {
             className="btn btn-amber"
             disabled={!canSubmit}
             onClick={() =>
-              onAdd(title.trim(), desc.trim(), new Date(dl).getTime(), gid)
+              onAdd(title.trim(), desc.trim(), new Date(dl).getTime(), gid, openForBets)
             }
           >
             Set Goal
@@ -81,18 +79,32 @@ function AddGoalModal({ onClose, onAdd, groups }) {
           </select>
         </div>
       </div>
+      <div className="field">
+        <div className="checkbox-row">
+          <input
+            type="checkbox"
+            id="openForBets"
+            checked={openForBets}
+            onChange={(e) => setOpenForBets(e.target.checked)}
+          />
+          <label htmlFor="openForBets" className="checkbox-label">
+            Allow friends to bet on this goal
+          </label>
+        </div>
+      </div>
     </Modal>
   );
 }
 
 // ─── Goal Card ────────────────────────────────────────────────────────────────
-function GoalCard({ goal, account, friends, onMarkComplete, onVerify, onBet }) {
-  const isOwner    = goal.owner === account;
-  const canVerify  =
+function GoalCard({ goal, account, friends, onMarkComplete, onVerify, onBet, onToggleBetting }) {
+  const isOwner   = goal.owner === account;
+  const canVerify =
     !isOwner &&
     goal.completedAt &&
     !goal.verified &&
     !goal.verifiedBy.includes(account);
+  const betsOn    = goal.openForBets !== false;
 
   const accentColor =
     goal.completedAt && goal.verified
@@ -124,6 +136,9 @@ function GoalCard({ goal, account, friends, onMarkComplete, onVerify, onBet }) {
               {goal.completedAt && !goal.verified && (
                 <span className="tag tag-amber">Pending verification</span>
               )}
+              <span className={`tag ${betsOn ? "tag-amber" : "tag-muted"}`}>
+                Bets {betsOn ? "ON" : "OFF"}
+              </span>
             </div>
 
             {/* Meta */}
@@ -155,12 +170,24 @@ function GoalCard({ goal, account, friends, onMarkComplete, onVerify, onBet }) {
                 Verify
               </button>
             )}
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => onBet(goal.id)}
-            >
-              Bet
-            </button>
+            {/* Bet toggle for owner */}
+            {isOwner && (
+              <button
+                className={`btn btn-sm ${betsOn ? "btn-ghost" : "btn-amber"}`}
+                onClick={() => onToggleBetting(goal.id)}
+              >
+                {betsOn ? "Disable Bets" : "Enable Bets"}
+              </button>
+            )}
+            {/* Bet button for anyone when betting is enabled */}
+            {betsOn && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => onBet(goal.id)}
+              >
+                Bet
+              </button>
+            )}
           </div>
         </div>
 
@@ -189,13 +216,14 @@ export default function GoalsPage({
   addGoal,
   markComplete,
   verifyGoal,
-  onBet,        // (goalId) => open bet modal pre-linked to this goal
+  onBet,
+  toggleGoalBetting,
 }) {
   const [filter,    setFilter]    = useState("all"); // all | mine | verify
   const [showModal, setShowModal] = useState(false);
 
-  const myGoals   = state.goals.filter((g) => g.owner === state.account);
-  const toVerify  = state.goals.filter(
+  const myGoals  = state.goals.filter((g) => g.owner === state.account);
+  const toVerify = state.goals.filter(
     (g) =>
       g.owner !== state.account &&
       g.completedAt &&
@@ -327,6 +355,7 @@ export default function GoalsPage({
               onMarkComplete={markComplete}
               onVerify={verifyGoal}
               onBet={onBet}
+              onToggleBetting={toggleGoalBetting}
             />
           ))}
         </div>
@@ -337,8 +366,8 @@ export default function GoalsPage({
         <AddGoalModal
           groups={state.groups}
           onClose={() => setShowModal(false)}
-          onAdd={(title, desc, deadline, groupId) => {
-            addGoal(title, desc, deadline, groupId);
+          onAdd={(title, desc, deadline, groupId, openForBets) => {
+            addGoal(title, desc, deadline, groupId, openForBets);
             setShowModal(false);
           }}
         />
