@@ -3,12 +3,15 @@
 // Wire addFriend / declineRequest to contract calls when ready.
 
 import { useState } from "react";
-import { short, initial, Modal } from "./constants.js";
+import { short, initial, Modal } from "../contract/Constants.jsx";
+
+const isAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(value || "");
 
 // ─── Add Friend Modal ─────────────────────────────────────────────────────────
 function AddFriendModal({ onClose, onAdd }) {
   const [addr, setAddr] = useState("");
   const [name, setName] = useState("");
+  const canAdd = isAddress(addr);
 
   return (
     <Modal
@@ -18,7 +21,8 @@ function AddFriendModal({ onClose, onAdd }) {
         <>
           <button
             className="btn btn-ink"
-            onClick={() => addr && onAdd(addr, name)}
+            disabled={!canAdd}
+            onClick={() => canAdd && onAdd(addr, name)}
           >
             Add Friend
           </button>
@@ -29,13 +33,18 @@ function AddFriendModal({ onClose, onAdd }) {
       }
     >
       <div className="field">
-        <label className="label">Wallet Address or ENS</label>
+        <label className="label">Wallet Address</label>
         <input
           className="input"
-          placeholder="0x… or vitalik.eth"
+          placeholder="0x1234..."
           value={addr}
           onChange={(e) => setAddr(e.target.value)}
         />
+        {addr && !canAdd && (
+          <div className="field-hint error">
+            Use a full 0x wallet address so bet transactions can go to this person.
+          </div>
+        )}
       </div>
       <div className="field">
         <label className="label">Display Name (optional)</label>

@@ -64,7 +64,23 @@ export const INITIAL_STATE = {
       winner: null,
       createdAt: Date.now() - 86400000 * 2,
     },
+    {
+      id: "bet2",
+      groupId: "g1",
+      goalId: "goal2",
+      creator: "0xBob2222",
+      against: MOCK_ACCOUNT,
+      amount: "0.10",
+      token: "MON",
+      condition: "Write 3 blog posts before the deadline",
+      creatorWins: "goal achieved",
+      againstWins: "goal missed",
+      status: "pending_accept",
+      winner: null,
+      createdAt: Date.now() - 86400000,
+    },
   ],
+  transactions: [],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
