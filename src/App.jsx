@@ -5,7 +5,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { parseEther } from "viem";
 import { CSS }          from "./styles.js";
-import { INITIAL_STATE, short, ensName, DeadlineChip, Modal } from "./contract/Constants.jsx";
+import { INITIAL_STATE, MOCK_ACCOUNT, short, ensName, DeadlineChip, Modal } from "./contract/Constants.jsx";
 import FriendsPage from "./components/FriendsPage.jsx";
 import GroupsPage  from "./components/CreateGroup.jsx";
 import GoalsPage   from "./components/GoalsPage.jsx";
@@ -173,6 +173,60 @@ const MONAD_TESTNET = {
 
 const isAddress = (value) => /^0x[a-fA-F0-9]{40}$/.test(value || "");
 const mon = (value) => Number.parseFloat(value || 0);
+
+// ─── Per-account localStorage persistence ─────────────────────────────────────
+const STORAGE_KEY = "goalpool_accounts";
+
+function loadAllAccounts() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function persistAccount(address, fields) {
+  if (!address || address === MOCK_ACCOUNT) return;
+  const all = loadAllAccounts();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...all, [address]: fields }));
+}
+
+const ACCOUNT_DEFAULTS = {
+  friends: [],
+  pendingRequests: [],
+  groups: [],
+  goals: [],
+  bets: [],
+  transactions: [],
+};
+
+function accountFields(s) {
+  return {
+    friends: s.friends,
+    pendingRequests: s.pendingRequests,
+    groups: s.groups,
+    goals: s.goals,
+    bets: s.bets,
+    transactions: s.transactions,
+  };
+}
+
+// Write a bet into another account's stored data without touching current state
+function injectBetToAccount(address, bet) {
+  if (!address || !isAddress(address)) return;
+  const all = loadAllAccounts();
+  const data = all[address] || { ...ACCOUNT_DEFAULTS };
+  if (data.bets.some((b) => b.id === bet.id)) return;
+  data.bets = [...data.bets, bet];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...all, [address]: data }));
+}
+
+// Update a bet's fields in another account's stored data
+function syncBetToAccount(address, betId, updates) {
+  if (!address || !isAddress(address)) return;
+  const all = loadAllAccounts();
+  const data = all[address];
+  if (!data) return;
+  data.bets = data.bets.map((b) => (b.id === betId ? { ...b, ...updates } : b));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...all, [address]: data }));
+}
 
 // ─── Home / Dashboard ─────────────────────────────────────────────────────────
 function HomePage({ state, setPage, onBet, markComplete }) {
@@ -380,25 +434,29 @@ export default function App() {
   function activateWalletAccount(account) {
     if (!account) return;
 
-    setWalletAddress(account);
-    update((s) => {
-      s.account = account;
-      s.groups = s.groups.map((g) =>
-        g.members.includes(account)
-          ? g
-          : { ...g, members: [...g.members, account] }
-      );
-      return s;
+    setState((s) => {
+      // Save the outgoing account before switching
+      persistAccount(s.account, accountFields(s));
+      // Load stored data for the incoming account (or start fresh)
+      const stored = loadAllAccounts();
+      const data = stored[account] ?? { ...ACCOUNT_DEFAULTS };
+      return { ...s, account, ...data };
     });
+    setWalletAddress(account);
   }
 
   function clearWalletAccount() {
-    setWalletAddress("");
-    update((s) => {
-      s.account = INITIAL_STATE.account;
-      return s;
+    setState((s) => {
+      persistAccount(s.account, accountFields(s));
+      return { ...INITIAL_STATE };
     });
+    setWalletAddress("");
   }
+
+  // Auto-save each account's data whenever state changes
+  useEffect(() => {
+    persistAccount(state.account, accountFields(state));
+  }, [state]);
 
   useEffect(() => {
     if (!window.ethereum?.on) return;
@@ -509,18 +567,16 @@ export default function App() {
 
   async function createBet(data) {
     const id = "bet" + Date.now();
+    const newBet = {
+      id,
+      ...data,
+      txHash: null,
+      status: "pending_accept",
+      winner: null,
+      createdAt: Date.now(),
+    };
     update((s) => {
-      s.bets = [
-        ...s.bets,
-        {
-          id,
-          ...data,
-          txHash: null,
-          status: "pending_accept",
-          winner: null,
-          createdAt: Date.now(),
-        },
-      ];
+      s.bets = [...s.bets, newBet];
       s.transactions = [
         ...(s.transactions || []),
         {
@@ -537,6 +593,8 @@ export default function App() {
       ];
       return s;
     });
+    // Let the counterparty see the incoming bet when they connect
+    injectBetToAccount(data.against, newBet);
     push("Bet proposed — waiting for accept or decline", "success");
     return true;
   }
@@ -565,6 +623,8 @@ export default function App() {
       ];
       return s;
     });
+    // Sync accepted status back to the creator's stored data
+    syncBetToAccount(bet.creator, betId, { status: "active", acceptTxHash: null });
     push("Bet accepted — no MON moves until settlement", "success");
     return true;
   }
@@ -573,9 +633,10 @@ export default function App() {
     const bet = state.bets.find((b) => b.id === betId);
     if (!bet) return false;
 
+    const declinedAt = Date.now();
     update((s) => {
       s.bets = s.bets.map((b) =>
-        b.id === betId ? { ...b, status: "declined", declinedAt: Date.now() } : b
+        b.id === betId ? { ...b, status: "declined", declinedAt } : b
       );
       s.transactions = [
         ...(s.transactions || []),
@@ -593,6 +654,8 @@ export default function App() {
       ];
       return s;
     });
+    // Sync declined status back to the creator's stored data
+    syncBetToAccount(bet.creator, betId, { status: "declined", declinedAt });
     push("Bet declined", "success");
     return true;
   }
@@ -653,6 +716,9 @@ export default function App() {
       }
       return s;
     });
+    // Sync settled status to the other party's stored data
+    const counterparty = bet.creator === state.account ? bet.against : bet.creator;
+    syncBetToAccount(counterparty, betId, { status: "settled", winner, settleTxHash });
     push(canConfirmOnChain ? "Bet settled with MetaMask payment" : "Demo bet settled locally", "success");
     return true;
   }
