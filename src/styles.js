@@ -300,6 +300,56 @@ body::after {
 .bet-amount { font-family: var(--font-display); font-size: 32px; color: var(--amber); line-height: 1; }
 .bet-vs { font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin: 4px 0; }
 .bet-condition { font-size: 13px; font-style: italic; color: var(--muted); margin-top: 6px; }
+.bet-tx {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ── Transaction history ── */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fff;
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+.history-main { min-width: 0; }
+.history-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.history-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.history-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.history-amount {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.history-amount.gain { color: var(--sage); }
+.history-amount.loss { color: var(--rose); }
 
 /* ── Deadline ── */
 .deadline { font-family: var(--font-mono); font-size: 11px; }

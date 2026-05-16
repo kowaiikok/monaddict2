@@ -25,7 +25,7 @@ function useToast() {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar({ page, setPage, state, walletAddress, onWalletClick }) {
   const pendingCount = state.pendingRequests.length;
-  const activeBets   = state.bets.filter((b) => b.status !== "settled").length;
+  const activeBets   = state.bets.filter((b) => b.status === "active" || b.status === "pending_accept").length;
 
   const NAV = [
     { id: "home",    icon: "⌂",  label: "Dashboard" },
@@ -508,20 +508,6 @@ export default function App() {
   }
 
   async function createBet(data) {
-    let txHash = null;
-
-    try {
-      txHash = await requestBetTransaction({
-        amount: data.amount,
-        to: data.against,
-        label: "bet stake",
-      });
-    } catch (error) {
-      console.error("Bet transaction failed:", error);
-      push(error.message || "Bet transaction cancelled", "error");
-      return false;
-    }
-
     const id = "bet" + Date.now();
     update((s) => {
       s.bets = [
@@ -529,7 +515,7 @@ export default function App() {
         {
           id,
           ...data,
-          txHash,
+          txHash: null,
           status: "pending_accept",
           winner: null,
           createdAt: Date.now(),
@@ -540,18 +526,18 @@ export default function App() {
         {
           id: "tx" + Date.now(),
           betId: id,
-          type: "stake_sent",
+          type: "bet_proposed",
           label: "Bet proposed",
-          amount: -mon(data.amount),
+          amount: 0,
           token: data.token,
-          hash: txHash,
+          hash: null,
           counterparty: data.against,
           createdAt: Date.now(),
         },
       ];
       return s;
     });
-    push("Bet proposed with stake transaction", "success");
+    push("Bet proposed — waiting for accept or decline", "success");
     return true;
   }
 
@@ -559,63 +545,90 @@ export default function App() {
     const bet = state.bets.find((b) => b.id === betId);
     if (!bet) return false;
 
-    let acceptTxHash = null;
-
-    try {
-      acceptTxHash = await requestBetTransaction({
-        amount: bet.amount,
-        to: bet.creator,
-        label: "accept stake",
-      });
-    } catch (error) {
-      console.error("Accept transaction failed:", error);
-      push(error.message || "Accept transaction cancelled", "error");
-      return false;
-    }
-
     update((s) => {
       s.bets = s.bets.map((b) =>
-        b.id === betId ? { ...b, status: "active", acceptTxHash } : b
+        b.id === betId ? { ...b, status: "active", acceptTxHash: null } : b
       );
       s.transactions = [
         ...(s.transactions || []),
         {
           id: "tx" + Date.now(),
           betId,
-          type: "stake_sent",
+          type: "bet_accepted",
           label: "Bet accepted",
-          amount: -mon(bet.amount),
+          amount: 0,
           token: bet.token,
-          hash: acceptTxHash,
+          hash: null,
           counterparty: bet.creator,
           createdAt: Date.now(),
         },
       ];
       return s;
     });
-    push("Bet accepted — stakes sent", "success");
+    push("Bet accepted — no MON moves until settlement", "success");
+    return true;
+  }
+
+  function declineBet(betId) {
+    const bet = state.bets.find((b) => b.id === betId);
+    if (!bet) return false;
+
+    update((s) => {
+      s.bets = s.bets.map((b) =>
+        b.id === betId ? { ...b, status: "declined", declinedAt: Date.now() } : b
+      );
+      s.transactions = [
+        ...(s.transactions || []),
+        {
+          id: "tx" + Date.now(),
+          betId,
+          type: "bet_declined",
+          label: "Bet declined",
+          amount: 0,
+          token: bet.token,
+          hash: null,
+          counterparty: bet.creator,
+          createdAt: Date.now(),
+        },
+      ];
+      return s;
+    });
+    push("Bet declined", "success");
     return true;
   }
 
   async function settleBet(betId, winner) {
-    let settleTxHash = null;
+    const bet = state.bets.find((b) => b.id === betId);
+    if (!bet) return false;
 
-    try {
-      settleTxHash = await requestBetTransaction({
-        amount: "0",
-        to: walletAddress,
-        label: "settlement confirmation",
-      });
-    } catch (error) {
-      console.error("Settlement transaction failed:", error);
-      push(error.message || "Settlement transaction cancelled", "error");
-      return false;
+    let settleTxHash = null;
+    const userLost = winner !== state.account;
+    const settlementValue = userLost ? bet.amount : "0";
+    const canConfirmOnChain = userLost && isAddress(winner);
+
+    if (canConfirmOnChain) {
+      try {
+        settleTxHash = await requestBetTransaction({
+          amount: settlementValue,
+          to: winner,
+          label: "settlement payment",
+        });
+      } catch (error) {
+        console.error("Settlement transaction failed:", error);
+        push(error.message || "Settlement transaction cancelled", "error");
+        return false;
+      }
+    } else {
+      settleTxHash = "local-mock-" + Date.now();
+      push("Demo settlement recorded locally.");
     }
 
     update((s) => {
-      const bet = s.bets.find((b) => b.id === betId);
       const won = bet && winner === s.account;
-      const settlementAmount = won && bet ? mon(bet.amount) * 2 : 0;
+      const settlementAmount = won ? mon(bet.amount) : -mon(bet.amount);
+      const goal = s.goals.find((g) => g.id === bet.goalId);
+      const goalOwner = goal?.owner === s.account ? "you" : ensName(goal?.owner, s.friends);
+      const completed = goal?.owner === winner;
 
       s.bets = s.bets.map((b) =>
         b.id === betId ? { ...b, status: "settled", winner, settleTxHash } : b
@@ -627,7 +640,9 @@ export default function App() {
             id: "tx" + Date.now(),
             betId,
             type: won ? "settlement_gain" : "settlement_loss",
-            label: won ? "Bet won" : "Bet lost",
+            label: completed
+              ? `${goalOwner} completed the goal`
+              : `${goalOwner} did not complete the goal`,
             amount: settlementAmount,
             token: bet.token,
             hash: settleTxHash,
@@ -638,7 +653,7 @@ export default function App() {
       }
       return s;
     });
-    push("Bet settled with confirmation transaction", "success");
+    push(canConfirmOnChain ? "Bet settled with MetaMask payment" : "Demo bet settled locally", "success");
     return true;
   }
 
@@ -792,7 +807,9 @@ export default function App() {
               state={state}
               createBet={createBet}
               acceptBet={acceptBet}
+              declineBet={declineBet}
               settleBet={settleBet}
+              markComplete={markComplete}
               preGoalId={betGoalId}
             />
           )}
