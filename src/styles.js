@@ -234,6 +234,48 @@ body::after {
 .modal-body   { padding: 24px 28px; }
 .modal-footer { padding: 16px 28px; border-top: 2px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
 
+/* ── Wallet connect ── */
+.wallet-connect-box {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #fff; border: 2px solid var(--border);
+  border-radius: var(--r); padding: 18px;
+}
+.wallet-connect-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--amber); color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 24px;
+  border: 2px solid var(--ink); flex-shrink: 0;
+}
+.wallet-connect-title {
+  font-family: var(--font-display); font-size: 28px;
+  line-height: 1; letter-spacing: 1px;
+}
+.wallet-connect-copy,
+.field-hint {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted); margin-top: 4px;
+}
+.wallet-actions-inline {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+}
+.wallet-test-box,
+.wallet-disconnect-box {
+  margin-top: 16px; background: var(--cream);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: 14px;
+}
+.wallet-test-row {
+  display: flex; gap: 8px; align-items: flex-start;
+}
+.wallet-test-row .input { flex: 1; }
+.wallet-disconnect-box {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.wallet-disconnect-title {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+}
+
 /* ── Form ── */
 .field { margin-bottom: 18px; }
 .label {

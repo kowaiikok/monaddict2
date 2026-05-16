@@ -2,9 +2,10 @@
 // Root shell: sidebar nav, global state, toast system, page routing.
 // Each page is a separate file — see FriendsPage, GroupsPage, GoalsPage, BetsPage.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { parseEther } from "viem";
 import { CSS }          from "./styles.js";
-import { INITIAL_STATE, short, ensName, DeadlineChip } from "./Constants.jsx";
+import { INITIAL_STATE, short, ensName, DeadlineChip, Modal } from "./contract/Constants.jsx";
 import FriendsPage from "./components/FriendsPage.jsx";
 import GroupsPage  from "./components/CreateGroup.jsx";
 import GoalsPage   from "./components/GoalsPage.jsx";
@@ -72,6 +73,7 @@ function Sidebar({ page, setPage, state, walletAddress, onWalletClick }) {
 function WalletModal({ account, activeAccount, onClose, onConnect, onSwitch, onDisconnect, onUseTestUser }) {
   const [testAddress, setTestAddress] = useState("");
   const canUseTestUser = isAddress(testAddress);
+  const hasLocalTestUser = !account && activeAccount && isAddress(activeAccount);
 
   return (
     <Modal
@@ -82,15 +84,15 @@ function WalletModal({ account, activeAccount, onClose, onConnect, onSwitch, onD
           <button className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
+          {(account || hasLocalTestUser) && (
+            <button className="btn btn-ghost" onClick={onDisconnect}>
+              Disconnect
+            </button>
+          )}
           {account && (
-            <>
-              <button className="btn btn-ghost" onClick={onDisconnect}>
-                Disconnect
-              </button>
-              <button className="btn btn-amber" onClick={onSwitch}>
-                Switch Wallet
-              </button>
-            </>
+            <button className="btn btn-amber" onClick={onSwitch}>
+              Switch Wallet
+            </button>
           )}
           <button className="btn btn-ink" onClick={() => onConnect(true)}>
             Connect MetaMask
@@ -101,23 +103,33 @@ function WalletModal({ account, activeAccount, onClose, onConnect, onSwitch, onD
       <div className="wallet-connect-box">
         <div className="wallet-connect-icon">M</div>
         <div>
-          <div className="wallet-connect-title">MetaMask</div>
+          <div className="wallet-connect-title">Your MetaMask wallet</div>
           <div className="wallet-connect-copy">
             {account
-              ? `Active user: ${short(account)}`
-              : activeAccount && isAddress(activeAccount)
+              ? `Connected wallet: ${short(account)}`
+              : hasLocalTestUser
               ? `Local test user: ${short(activeAccount)}`
-              : "Connect any wallet to use GoalPool as that user."}
+              : "Open MetaMask and choose the wallet you want to use."}
+          </div>
+          <div className="wallet-actions-inline">
+            <button className="btn btn-ink btn-sm" onClick={() => onConnect(true)}>
+              Connect MetaMask
+            </button>
+            {account && (
+              <button className="btn btn-amber btn-sm" onClick={onSwitch}>
+                Switch Wallet
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       <div className="wallet-test-box">
-        <label className="label">Use address for local testing</label>
+        <label className="label">Friend/test wallet address</label>
         <div className="wallet-test-row">
           <input
             className="input"
-            placeholder="Friend's 0x wallet address"
+            placeholder="Paste friend's 0x wallet address"
             value={testAddress}
             onChange={(e) => setTestAddress(e.target.value)}
           />
@@ -130,9 +142,23 @@ function WalletModal({ account, activeAccount, onClose, onConnect, onSwitch, onD
           </button>
         </div>
         <div className="field-hint">
-          This changes the app user for local testing. Real transactions still need MetaMask switched to the same wallet.
+          Use this to view the app as your friend during local testing. For real transactions, MetaMask must be connected to that same wallet.
         </div>
       </div>
+
+      {(account || hasLocalTestUser) && (
+        <div className="wallet-disconnect-box">
+          <div>
+            <div className="wallet-disconnect-title">Disconnect current user</div>
+            <div className="field-hint">
+              Clears this app's active wallet so another user can connect.
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onDisconnect}>
+            Disconnect
+          </button>
+        </div>
+      )}
     </Modal>
   );
 }
