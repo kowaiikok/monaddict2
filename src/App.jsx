@@ -2,14 +2,13 @@
 // Root shell: sidebar nav, global state, toast system, page routing.
 // Each page is a separate file — see FriendsPage, GroupsPage, GoalsPage, BetsPage.
 
-import { useState, useCallback, useEffect } from "react";
-import { parseEther } from "viem";
-import { CSS } from "./styles.js";
-import { INITIAL_STATE, short, ensName, DeadlineChip, Modal } from "./contract/Constants.jsx";
+import { useState, useCallback } from "react";
+import { CSS }          from "./styles.js";
+import { INITIAL_STATE, short, ensName, DeadlineChip } from "./Constants.jsx";
 import FriendsPage from "./components/FriendsPage.jsx";
-import GroupsPage from "./components/CreateGroup.jsx";
-import GoalsPage from "./components/GoalsPage.jsx";
-import BetsPage from "./components/BetsPage.jsx";
+import GroupsPage  from "./components/CreateGroup.jsx";
+import GoalsPage   from "./components/GoalsPage.jsx";
+import BetsPage    from "./components/BetsPage.jsx";
 
 // ─── Toast hook ───────────────────────────────────────────────────────────────
 function useToast() {

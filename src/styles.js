@@ -91,20 +91,10 @@ body::after {
   padding: 1px 6px; border-radius: 20px;
 }
 .sidebar-wallet {
-  background: transparent;
-  border: 0;
-  width: 100%;
-  text-align: left;
   padding: 16px 20px;
   border-top: 1px solid rgba(255,255,255,.1);
   font-family: var(--font-mono); font-size: 11px;
   color: rgba(255,255,255,.35);
-  cursor: pointer;
-  transition: color .15s, background .15s;
-}
-.sidebar-wallet:hover {
-  background: rgba(255,255,255,.05);
-  color: var(--paper);
 }
 .wallet-dot {
   display: inline-block; width: 7px; height: 7px; border-radius: 50%;
@@ -244,42 +234,6 @@ body::after {
 .modal-body   { padding: 24px 28px; }
 .modal-footer { padding: 16px 28px; border-top: 2px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
 
-/* ── Wallet connect ── */
-.wallet-connect-box {
-  display: flex; align-items: center; gap: 14px;
-  background: #fff; border: 2px solid var(--border);
-  border-radius: var(--r); padding: 18px;
-}
-.wallet-connect-icon {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: var(--amber); color: var(--ink);
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-size: 24px;
-  border: 2px solid var(--ink);
-  flex-shrink: 0;
-}
-.wallet-connect-title {
-  font-family: var(--font-display); font-size: 28px;
-  line-height: 1; letter-spacing: 1px;
-}
-.wallet-connect-copy {
-  font-family: var(--font-mono); font-size: 12px;
-  color: var(--muted); margin-top: 4px;
-}
-.wallet-test-box {
-  margin-top: 18px;
-  background: var(--cream);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 14px;
-}
-.wallet-test-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-.wallet-test-row .input { flex: 1; }
-
 /* ── Form ── */
 .field { margin-bottom: 18px; }
 .label {
@@ -294,13 +248,6 @@ body::after {
 }
 .input:focus, .textarea:focus, .select:focus { border-color: var(--ink); }
 .textarea { resize: vertical; min-height: 80px; font-family: var(--font-body); font-size: 14px; }
-.field-hint {
-  margin-top: 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--muted);
-}
-.field-hint.error { color: var(--rose); }
 .input-row { display: flex; gap: 10px; }
 .input-row .field { flex: 1; margin-bottom: 0; }
 .checkbox-row { display: flex; align-items: center; gap: 10px; }
@@ -311,33 +258,6 @@ body::after {
 .bet-amount { font-family: var(--font-display); font-size: 32px; color: var(--amber); line-height: 1; }
 .bet-vs { font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin: 4px 0; }
 .bet-condition { font-size: 13px; font-style: italic; color: var(--muted); margin-top: 6px; }
-.bet-tx {
-  margin-top: 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--muted);
-}
-
-/* ── Transaction history ── */
-.history-list { display: flex; flex-direction: column; gap: 10px; }
-.history-row {
-  background: #fff; border: 2px solid var(--border);
-  border-radius: var(--r); padding: 14px 16px;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-}
-.history-title {
-  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
-}
-.history-meta {
-  font-family: var(--font-mono); font-size: 10px;
-  color: var(--muted); margin-top: 3px;
-}
-.history-amount {
-  font-family: var(--font-display); font-size: 24px;
-  line-height: 1; white-space: nowrap;
-}
-.history-amount.gain { color: var(--sage); }
-.history-amount.loss { color: var(--rose); }
 
 /* ── Deadline ── */
 .deadline { font-family: var(--font-mono); font-size: 11px; }

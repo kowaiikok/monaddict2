@@ -3,10 +3,7 @@
 // Wire createBet / acceptBet / settleBet to contract calls when ready.
 
 import { useState } from "react";
-import { ensName, Modal } from "../contract/Constants.jsx";
-
-const money = (value) => Number.parseFloat(value || 0);
-const signedMon = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} MON`;
+import { ensName, Modal } from "../Constants.jsx";
 
 // ─── Create Bet Modal ─────────────────────────────────────────────────────────
 function CreateBetModal({ onClose, onCreate, state, preGoalId }) {
